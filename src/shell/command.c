@@ -177,6 +177,105 @@ void help(const char * cmd, char* arg) {
     }
     lock_release(&command_lock);
 }
+
+void dump_system_regs() {
+    lock_take(&command_lock);
+
+    iprintf("hello there 123 123 testing\n");
+
+    unsigned long long buf;
+
+    iprintf("-------- Feature registers --------\n");
+
+    asm volatile ("mrs %0, ID_AA64ISAR0_EL1" : "=r"(buf) ::);
+    iprintf("1. ID_AA64ISAR0_EL1: 0x%llx\n", buf);
+
+    asm volatile ("mrs %0, ID_AA64PFR0_EL1" : "=r"(buf) ::);
+    iprintf("2. ID_AA64PFR0_EL1: 0x%llx\n", buf);
+
+    asm volatile ("mrs %0, ID_AA64PFR1_EL1" : "=r"(buf) ::);
+    iprintf("3. ID_AA64PFR1_EL1: 0x%llx\n", buf);
+
+    asm volatile ("mrs %0, MIDR_EL1" : "=r"(buf) ::);
+    iprintf("4. MIDR_EL1: 0x%llx\n", buf);
+
+    asm volatile ("mrs %0, ID_AA64ISAR1_EL1" : "=r"(buf) ::);
+    iprintf("5. ID_AA64ISAR1_EL1: 0x%llx\n", buf);
+
+    asm volatile ("mrs %0, ID_AA64MMFR0_EL1" : "=r"(buf) ::);
+    iprintf("6. ID_AA64MMFR0_EL1: 0x%llx\n", buf);
+
+    asm volatile ("mrs %0, ID_AA64MMFR2_EL1" : "=r"(buf) ::);
+    iprintf("7. ID_AA64MMFR2_EL1: 0x%llx\n", buf);
+
+    //apple clang doesnt like it probably because armv8.0 has no business having sve lol
+    // asm volatile ("mrs %0, ID_AA64ZFR0_EL1" : "=r"(buf) ::);
+    // iprintf("8. ID_AA64ZFR0_EL1: %llx\n", buf);
+
+
+    iprintf("-------- Other regsiters --------\n");
+
+    asm volatile ("mrs %0, CNTFRQ_EL0" : "=r"(buf) ::);
+    iprintf("CNTFRQ_EL0: 0x%llx\n", buf);
+
+    asm volatile ("mrs %0, CurrentEL" : "=r"(buf) ::);
+    iprintf("CurrentEL [2:3]: 0x%llx\n", buf >> 2);
+
+    asm volatile ("mrs %0, CLIDR_EL1" : "=r"(buf) ::);
+    iprintf("CLIDR_EL1: 0x%llx\n", buf);
+
+    lock_release(&command_lock);
+}
+
+void fix_a7() {
+    lock_take(&command_lock);
+
+    __asm__ volatile(
+        // "unlock the core for debugging"
+        "msr OSLAR_EL1, xzr\n"
+
+        /* Common to all Apple targets */
+            "mrs    x28, S3_0_C15_C4_0\n"
+            "orr    x28, x28, #0x800\n" //ARM64_REG_HID4_DisDcMVAOps
+            "orr    x28, x28, #0x100000000000\n" //ARM64_REG_HID4_DisDcSWL2Ops
+            "msr    S3_0_C15_C4_0, x28\n"
+            "isb    sy\n"
+
+        /* Cyclone / typhoon specific init thing */
+            "mrs     x28, S3_0_C15_C0_0\n"
+            "orr     x28, x28, #0x100000\n"//ARM64_REG_HID0_LoopBuffDisb
+            "msr     S3_0_C15_C0_0, x28\n"
+
+            "mrs     x28, S3_0_C15_C1_0\n"
+            "orr     x28, x28, #0x1000000\n"//ARM64_REG_HID1_rccDisStallInactiveIexCtl
+    //cyclone
+            "orr     x28, x28, #0x2000000\n"//ARM64_REG_HID1_disLspFlushWithContextSwitch
+            "msr     S3_0_C15_C1_0, x28\n"
+
+            "mrs     x28, S3_0_C15_C3_0\n"
+            "orr     x28, x28, #0x40000000000000\n"//ARM64_REG_HID3_DisXmonSnpEvictTriggerL2StarvationMode
+            "msr     S3_0_C15_C3_0, x28\n"
+
+            "mrs     x28, S3_0_C15_C5_0\n"
+            "and     x28, x28, #0xffffefffffffffff\n" //(~ARM64_REG_HID5_DisHwpLd)
+            "and     x28, x28, #0xffffdfffffffffff\n"//(~ARM64_REG_HID5_DisHwpSt)
+            "msr     S3_0_C15_C5_0, x28\n"
+
+            "mrs     x28, S3_0_C15_C8_0\n"
+            "orr     x28, x28, #0xff0\n" // ARM64_REG_HID8_DataSetID0_VALUE | ARM64_REG_HID8_DataSetID1_VALUE
+            "msr     S3_0_C15_C8_0, x28\n"
+        /* Cyclone / typhoon specific init thing end */
+
+            /* dont die in wfi kthx */
+            "mrs     x28, S3_5_C15_C5_0\n"
+            "orr     x28, x28, #0x2000000\n"
+            "msr     S3_5_C15_C5_0, x28\n"
+
+            "isb sy\n"
+            "dsb sy\n"
+    );
+}
+
 void command_init() {
     command_task = task_create("command", command_main);
     command_task->flags |= TASK_RESTART_ON_EXIT;
