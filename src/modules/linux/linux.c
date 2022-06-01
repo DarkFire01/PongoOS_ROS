@@ -296,7 +296,6 @@ void linux_prep_boot()
     *colormatrix_mul_31 = 4095;
     *colormatrix_mul_32 = 4095;
     *colormatrix_mul_33 = 4095;
-    puts("This is only supported on iPhone 7 for now and works to a lesser extent on other A10 devices. Behavior on non-A10 devices is undefined!!");
 
     /*
      * This is a really hacky guesstimate, but it works on all devices..
@@ -320,27 +319,19 @@ void linux_prep_boot()
         iprintf("Failed to find SEPFW region in ADT!");
 
     gLinuxStage = (void *)alloc_contig(image_size + LINUX_DTREE_SIZE);
-    ret = unlzma_decompress((uint8_t *)gLinuxStage, &dest_size, loader_xfer_recv_data, image_size);
-    if (ret != SZ_OK)
+    if (!gLinuxStage)
     {
-        puts("Assuming decompressed kernel.");
-        image_size = *(uint64_t *)(loader_xfer_recv_data + 16);
-        memcpy(gLinuxStage, loader_xfer_recv_data, image_size);
+        puts("Failed to allocate memory for Linux stage!");
     }
-    else
-        image_size = *(uint64_t *)(gLinuxStage + 16);
 
-    gLinuxFDT = (void *)((((uint64_t)gLinuxStage) + image_size + 7ull) & -8ull);
+    puts("Resvering FDT region");
     ret = fdt_add_mem_rsv(fdt, (uint64_t)gLinuxFDT, LINUX_DTREE_SIZE);
     if (ret < 0)
-        iprintf("Could not reserve FDT region in FDT, here be dragons..");
+        puts("Could not reserve FDT region in FDT, here be dragons..");
+    puts("Copying FDT");
+   // memcpy(gLinuxFDT, fdt, LINUX_DTREE_SIZE);
 
-    memcpy(gLinuxFDT, fdt, LINUX_DTREE_SIZE);
     gLinuxStageSize = image_size + LINUX_DTREE_SIZE;
-
-    gBootArgs = (void *)((((uint64_t)gEntryPoint) + image_size + 7ull) & -8ull);
-    iprintf("Booting Linux: %p(%p)\n", gEntryPoint, gBootArgs);
-
     gLinuxStage = (void *)(((uint64_t)gLinuxStage) - kCacheableView + 0x800000000);
 }
 
