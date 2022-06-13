@@ -288,6 +288,27 @@ __attribute__((noinline)) void pongo_entry_cached()
         screen_fill_basecolor();
 }
 
+extern void fix_apple_common();
+extern void fix_a7();
+void apply_tunables()
+{
+    switch(socnum) {
+        case 0x8960:
+        case 0x7000:
+        case 0x7001:
+            fix_a7();
+            break;
+        case 0x8000:
+        case 0x8001:
+        case 0x8003:
+            fix_apple_common();
+            break;
+        default:
+            fix_apple_common();
+            break;
+    }
+}
+
 /*
 
     Name: pongo_entry
@@ -313,6 +334,7 @@ _Noreturn void pongo_entry(uint64_t *kernel_args, void *entryp, void (*exit_to_e
     set_exception_stack_core0();
     gFramebuffer = (uint32_t*)gBootArgs->Video.v_baseAddr;
     lowlevel_cleanup();
+    apply_tunables();
     if(gBootFlag == BOOT_FLAG_RAW)
     {
         // We're in EL1 here, but we might need to go back to EL3
