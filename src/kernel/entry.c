@@ -288,6 +288,7 @@ __attribute__((noinline)) void pongo_entry_cached()
         screen_fill_basecolor();
 }
 
+extern void fix_apple_common_ecore();
 extern void fix_apple_common();
 extern void fix_a7();
 void apply_tunables()
@@ -302,6 +303,12 @@ void apply_tunables()
         case 0x8001:
         case 0x8003:
             fix_apple_common();
+            break;
+        case 0x8010:
+        case 0x8011:
+        case 0x8012:
+        case 0x8015:
+            fix_apple_common_ecore();
             break;
         default:
             fix_apple_common();
