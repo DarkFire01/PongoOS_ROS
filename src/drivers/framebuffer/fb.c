@@ -280,7 +280,6 @@ void screen_init() {
     map_range(0xfb0000000ULL, fbbase - fboff, fbsize, 3, 1, true);
     gFramebuffer = (uint32_t*)(0xfb0000000ULL + fboff);
     gFramebufferCopy = (uint32_t*)alloc_contig(fbsize);
-
     height &= 0xfff0;
     scale_factor = 2;
     if (width > 800)
