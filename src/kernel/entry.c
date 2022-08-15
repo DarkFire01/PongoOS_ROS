@@ -291,8 +291,13 @@ __attribute__((noinline)) void pongo_entry_cached()
 extern void fix_apple_common_ecore();
 extern void fix_apple_common();
 extern void fix_a7();
+extern void fix_a10();
+bool has_ecores;
+
 void apply_tunables()
 {
+    has_ecores = false;
+
     switch(socnum) {
         case 0x8960:
         case 0x7000:
@@ -306,11 +311,12 @@ void apply_tunables()
             break;
         case 0x8010:
         case 0x8011:
-        case 0x8012:
         case 0x8015:
+            has_ecores = true;
             fix_apple_common_ecore();
             break;
         default:
+            has_ecores = true;
             fix_apple_common();
             break;
     }
