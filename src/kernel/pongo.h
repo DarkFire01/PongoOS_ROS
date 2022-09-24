@@ -59,6 +59,8 @@
 //      and should be removed eventually, when doing so doesn't break everything.
 #include "dt/dt.h"
 
+#define BIT(n)     1 << n
+#define DT_KEY_LEN 0x20
 #define BOOT_LINE_LENGTH_iOS12 0x100
 #define BOOT_LINE_LENGTH_iOS13 0x260
 
